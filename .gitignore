@@ -1,0 +1,12 @@
+.ipynb_checkpoints/
+__pycache__/
+ressources P10/
+
+P8_Cityscapes_gtFine_trainvaltest/
+P8_Cityscapes_leftImg8bit_trainvaltest/
+
+mySaves/models/
+
+Patin_Clement_1_plan_travail_062024.docx
+Patin_Clement_3_note_methodo_062024.docx
+Patin_Clement_5_presentation_062024.pptx
