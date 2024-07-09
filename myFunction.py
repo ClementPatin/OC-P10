@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split
 
-from xplique.plots import plot_attributions
+from xplique.plots import plot_attributions, plot_attribution
 
 
 
@@ -747,7 +747,7 @@ class WrapperSegFormer(keras.Model):
 
 
 
-def plot_explanations(explanations, targets, images, alpha_mask, alpha_explain_plot, output_size=(256, 512), save_path=None) :
+def plot_explanations(explanations, targets, images, alpha_mask, alpha_explain_plot, nrows=2, ncols=3, output_size=(256, 512), title=None, save_path=None) :
     '''
     plot an images explanation with xplique "plot_attributions" function
     
@@ -755,9 +755,13 @@ def plot_explanations(explanations, targets, images, alpha_mask, alpha_explain_p
     ------------
     explanantions - tf tensor : xplique explanations, from an explainer
     targets - tf tensor : xplique targets, from xplique segmentation functions
+    images - tf tensor
     alpha_mask - float in [0, 1] : for merging images and predicted selected masks, alpha value for the mask
     alpha_explain_plot - float in [0, 1] : for the xplique "plot_attributions" function, opacity value for te explanation
+    nrows - int : for plt subplots
+    ncols - int : for plt subplots
     output_size - tuple of int
+    title - string
     save_path - string : to save figure. By default, None
     '''
     # add mask to image for visualization
@@ -768,21 +772,75 @@ def plot_explanations(explanations, targets, images, alpha_mask, alpha_explain_p
     explanation_resized = tf.image.resize(explanations, size=output_size, method="bilinear")
     images_with_mask_resized = tf.image.resize(images_with_mask, size=output_size, method="bilinear")
 
+    # create figure and subplots
+    fig, ax = plt.subplots(nrows, ncols, figsize = (14, 7))
+    fig.set_size_inches(30,10)
+
+    # title
+    if title is not None :
+        fig.suptitle(title)
+    
     # visualize explanation
-    plot_attributions(
-        explanation_resized, 
-        images_with_mask_resized, 
-        img_size=12., 
-        cols=images.shape[0]//2, 
-        cmap='jet', 
-        alpha=alpha_explain_plot, 
-        absolute_value=False, 
-        clip_percentile=0.5
-        )
+    for i in range(len(images)) :
+        plt.subplot(nrows, ncols, i+1)
+        plot_attribution(
+            explanation_resized[i], 
+            images_with_mask_resized[i], 
+            # img_size=12., 
+            # cols=1, 
+            cmap='jet', 
+            alpha=alpha_explain_plot, 
+            absolute_value=False, 
+            clip_percentile=0.2,
+            )
+        
+
     # save
     if save_path is not None :
         plt.savefig(save_path, format = "png")
 
+
+
+
+
+
+
+def plot_explanation(image, zone_name, explanation, target, alpha_mask, alpha_explain_plot, output_size=(256, 512)) :
+    '''
+    plot an images explanation with xplique "plot_attributions" function
+    
+    parameters :
+    ------------
+    image - tf tensor
+    zone_name - string : name of the area of the image for which we wish to display the explanation
+    explanantion - tf tensor : xplique image explanation, from an explainer
+    target - tf tensor : xplique target, from xplique segmentation functions
+    alpha_mask - float in [0, 1] : for merging images and predicted selected masks, alpha value for the mask
+    alpha_explain_plot - float in [0, 1] : for the xplique "plot_attributions" function, opacity value for te explanation
+    output_size - tuple of int
+    '''
+    # add mask to image for visualization
+    mask = tf.expand_dims(tf.cast(tf.reduce_any(target != 0, axis=-1), tf.float32), -1)
+    image_with_mask = (1 - alpha_mask) * image + alpha_mask * mask
+
+    # resize
+    explanation_resized = tf.image.resize(explanation, size=output_size, method="bilinear")
+    image_with_mask_resized = tf.image.resize(image_with_mask, size=output_size, method="bilinear")
+
+  
+    plt.figure(figsize=(14,7))
+    # visualize explanation
+    plot_attribution(
+        explanation_resized, 
+        image_with_mask_resized, 
+        cmap='jet', 
+        alpha=alpha_explain_plot, 
+        absolute_value=False, 
+        clip_percentile=0.2,
+        )
+    
+    # title
+    plt.title("SegFromer, image explanation\n"+zone_name)
 
 
 
@@ -820,19 +878,16 @@ def predict_with_unet_model(unet_model, input_images, input_masks, cats_colors, 
     images, masks = sample["image"], sample["mask"]
 
     # resize
-    images = tf.image.resize(images, size=(256, 512), method="bilinear").numpy()
+    images = tf.image.resize(images, size=(256, 512), method="bilinear").numpy().astype("uint8")
     masks = tf.image.resize(masks, size=(256, 512), method="nearest").numpy()
-
-    # for mask, get class label for each pixel then put them in a channel
-    masks = cats_colors[np.argmax(masks, axis=-1)]
-    # merge with original images
-    masks = (alpha * masks + (1 - alpha) * images).astype('uint8')
 
     # predict
     preds = unet_model.predict(images)
     # get class label for each pixel then put them in a channel
     preds = cats_colors[np.argmax(preds, axis=-1)]
-    # merge with original images
+
+    # merge masks and preds with original images
+    masks = (alpha * masks + (1 - alpha) * images).astype('uint8')
     preds = (alpha * preds + (1 - alpha) * images).astype('uint8')
 
     return images, masks, preds
@@ -877,16 +932,14 @@ def predict_with_segformer_model(segformer_model, input_images, input_masks, cat
     preds = tf.image.resize(preds, size=(256, 512), method="bilinear").numpy()
     # get class label for each pixel then put them in a channel
     preds = cats_colors[np.argmax(preds, axis=-1)]
-    # merge with original images
-    preds = (alpha * preds + (1 - alpha) * preds).astype('uint8')
 
     # resize also images to 256 x 512
-    output_images = tf.image.resize(input_images, size=(256, 512), method="bilinear").numpy()
+    output_images = tf.image.resize(input_images, size=(256, 512), method="bilinear").numpy().astype('uint8')
     output_masks = tf.image.resize(input_masks, size=(256, 512), method="nearest").numpy()
-    # for mask, get class label for each pixel then put them in a channel
-    output_masks = cats_colors[np.argmax(output_masks, axis=-1)]
-    # merge with original images
+
+    # merge masks and preds with original images
     output_masks = (alpha * output_masks + (1 - alpha) * output_images).astype('uint8')
+    preds = (alpha * preds + (1 - alpha) * output_images).astype('uint8')
 
     return output_images, output_masks, preds
 
