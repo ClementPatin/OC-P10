@@ -2,6 +2,9 @@ import tensorflow as tf
 import json
 import requests
 import numpy as np
+import os
+os.environ["SM_FRAMEWORK"] = 'tf.keras'
+from segmentation_models.metrics import IOUScore
 
 
 def call_seg_api(image_path, API_URL):
@@ -47,3 +50,8 @@ def prep_for_display(input_image, input_mask, input_pred, alpha=0.7) :
     pred = (alpha * pred + (1 - alpha) * image).astype('uint8')
 
     return image, mask, pred
+
+
+
+# def IOU_per_class(ground_truth, pred) :
+

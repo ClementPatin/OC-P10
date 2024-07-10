@@ -8,19 +8,27 @@ import requests
 from PIL import Image
 import io
 import os
+import sys
 
 import utils_for_frontend as mf
 
 st.set_page_config(layout="wide")
 
 # API_URL = "https://testapip10.azurewebsites.net"
-API_URL = "http://localhost:8000"
+# API_URL = "http://localhost:8000"
 
-images_folder = 'Patin_Clement_4_code_dashboard_062024/frontend/test_datapoints/test_images'
-masks_folder = 'Patin_Clement_4_code_dashboard_062024/frontend/test_datapoints/test_masks'
+API_URL = os.environ['API_URL']
+
+# images_folder = 'Patin_Clement_4_code_dashboard_062024/frontend/test_datapoints/test_images'
+# masks_folder = 'Patin_Clement_4_code_dashboard_062024/frontend/test_datapoints/test_masks'
+
+images_folder = 'test_datapoints/test_images'
+masks_folder = 'test_datapoints/test_masks'
 
 images = [os.path.join(images_folder, filename) for filename in os.listdir(images_folder)]
+images.sort()
 masks = [os.path.join(masks_folder, filename) for filename in os.listdir(masks_folder)]
+masks.sort()
 
 images_icons = [Image.open(image_path).resize((128, 128)) for image_path in images]
 

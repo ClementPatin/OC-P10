@@ -1,0 +1,36 @@
+version: '3'
+name: oc-p10
+services:
+  frontend:
+    build: frontend
+    # image: ocp7containerregistry.azurecr.io/app:frontend
+    image: clementpatin/oc-p10:frontend
+    ports:
+      - 8501:8501
+    depends_on:
+      - backend
+    # volumes:
+    #   - ./frontend:/app
+    restart: always
+    networks:
+      - app
+    container_name: frontend
+    environment:
+      - API_URL=http://backend:8000
+    
+  backend:
+    build: backend
+    # image: ocp7containerregistry.azurecr.io/app:backend
+    image: clementpatin/oc-p10:backend
+    ports:
+      - 8000:8000
+    # volumes:
+    #   - ./backend:/app
+    restart: always
+    networks:
+      - app
+    container_name: backend
+
+networks:
+  app:
+    driver: bridge
