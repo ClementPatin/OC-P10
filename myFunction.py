@@ -12,6 +12,7 @@ import evaluate
 import os
 
 import numpy as np
+import pandas as pd
 
 import matplotlib.pyplot as plt
 
@@ -245,6 +246,40 @@ def plot_learning_curves(history_dict, list_of_metrics, title="Learning curves",
 
 
 
+
+def IoU_per_class(gt, pred, IoU_col_name, cats_list):
+    """
+    From a ground truth segmentation mask and a prediction, already mapped to rgb colors, compute IoU_per_class
+
+    Parameters :
+    ------------
+    gt - np array : ground truth mask (H, W, 3)
+    pred - np array : prediction (H, W, 3)
+    IoU_col_name - str : name of the column with IoU per class
+    cats_list - list of str
+
+    Returns :
+    ---------
+    IoU_tab - DataFrame : with columns "class" and IoU_col_name
+    """
+    
+    # initiate meanIoU metric
+    meanIoU = tf.keras.metrics.MeanIoU(num_classes=len(cats_list))
+    # compute confusion matrix
+    meanIoU.update_state(y_true=gt, y_pred=pred)
+    cm = meanIoU.get_weights()[0]
+
+    # compute IoU per class
+    IoU_classes = cm.diagonal()/(cm.sum(axis=1) + cm.sum(axis=0) - cm.diagonal())
+    # # fill NaN with 0
+    # IoU_classes = np.nan_to_num(IoU_classes, nan=0.0)
+
+    # put results in a dataframe
+    IoU_tab = pd.DataFrame(index=range(len(cats_list)+1))
+    IoU_tab["class"] = ["MEAN"] + cats_list
+    IoU_tab[IoU_col_name] = [np.nanmean(IoU_classes)] + list(IoU_classes)
+
+    return IoU_tab
 
 
 

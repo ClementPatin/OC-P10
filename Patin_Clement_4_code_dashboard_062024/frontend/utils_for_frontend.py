@@ -8,6 +8,7 @@ os.environ["SM_FRAMEWORK"] = 'tf.keras'
 from segmentation_models.metrics import IOUScore
 import matplotlib.pyplot as plt
 import plotly.express as px
+import plotly.graph_objects as go
 
 
 
@@ -27,6 +28,71 @@ cats_colors = np.array([
 
 
 
+
+def compute_classes(mask):
+    """
+    From a ground truth segmentation mask compute the proportion of each class
+
+    Parameters :
+    ------------
+    mask - np array : ground truth mask (H, W, 3)
+
+    Returns :
+    ---------
+    classes_tab - DataFrame : with columns "class" and "percent"
+    """
+    # map each pixel to initial class
+    mask_map = np.zeros((mask.shape[0], mask.shape[1], len(cats)), dtype="uint8")
+    # Iterate through each color and create a mask
+    for category, color in enumerate(cats_colors):
+        mask_gt = np.all(mask == color, axis=-1)
+        mask_map[:, :, category][mask_gt] = 1
+
+    # count pixels
+    pixel_class_count = np.sum(mask_map, axis=(0,1), dtype="float")
+
+    # return pixel_class_count
+    
+    # compute proportions
+    pixel_class_count /= mask.shape[0] * mask.shape[1]
+
+    # put results in a dataframe
+    classes_tab = pd.DataFrame()
+    classes_tab["class"] = cats
+    classes_tab["percent %"] = pixel_class_count * 100
+
+    return classes_tab
+
+
+
+def plot_classes(classes_tab) :
+
+    colors = {
+        f"{cat}" : f"rgb({c[0]}, {c[1]}, {c[2]})" for cat, c in zip(cats, cats_colors)
+    }
+
+    # Create a bar plot
+    fig = go.Figure()
+    # Add bars
+    fig.add_trace(go.Bar(
+        x=classes_tab['class'],
+        y=classes_tab['percent %'],
+        marker_color=[colors[cat] for cat in classes_tab['class']]
+    ))
+
+    # Update layout to color x-tick labels
+    fig.update_layout(
+        yaxis=dict(
+            range=[0, 50]  # Set y-axis limits
+        ),
+        xaxis=dict(
+            tickmode='array',
+            tickvals=classes_tab['class'],
+            ticktext=[f'<span style="color:{colors[cat]}; font-weight:bold;">{cat}</span>' for cat in classes_tab['class']]
+        )
+    )
+
+    return fig
 
 
 def IoU_per_class(gt, pred, IoU_col_name):
@@ -74,6 +140,7 @@ def IoU_per_class(gt, pred, IoU_col_name):
 
 
 def plot_IoU(IoU_tabs) :
+
     if len(IoU_tabs) == 2 :
 
         df = pd.merge(left=IoU_tabs[0], right=IoU_tabs[1], on="class")
@@ -95,6 +162,34 @@ def plot_IoU(IoU_tabs) :
         color = color,
         barmode = "group"
     )
+
+    colors = {
+        f"{cat}" : f"rgb({c[0]}, {c[1]}, {c[2]})" for cat, c in zip(cats, cats_colors)
+    } | {"MEAN" : "rgb(0, 0, 0)"}
+
+
+    # Create a bar plot
+    # fig = go.Figure()
+    # # Add bars
+    # fig.add_trace(go.Bar(
+    #     x=df['class'],
+    #     y=df['percent %'],
+    #     marker_color=[colors[cat] for cat in df['class']]
+    # ))
+
+    # Update layout to color x-tick labels
+    fig.update_layout(
+        yaxis=dict(
+            range=[0, 1]  # Set y-axis limits
+        ),
+        xaxis=dict(
+            tickmode='array',
+            tickvals=df['class'],
+            ticktext=[f'<span style="color:{colors[cat]}; font-weight:bold;">{cat}</span>' for cat in df['class']]
+        )
+    )
+
+
 
     return fig
     

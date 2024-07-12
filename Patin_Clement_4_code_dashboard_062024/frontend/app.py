@@ -29,9 +29,6 @@ masks_paths.sort()
 # load them as little images for "image_select" function
 images_icons = [Image.open(image_path).resize((128, 128)) for image_path in images_paths]
 
-# Load a sample dataframe
-data = {'Category': ['A', 'B', 'C', 'D'], 'Values': [10, 20, 30, 40]}
-df = pd.DataFrame(data)
 
 # app title
 st.title('Streamlit App with Tabs')
@@ -43,27 +40,44 @@ tab1, tab2, tab3 = st.tabs(['Dataset', 'SegFormer sv U-net', 'Explainability'])
 with tab1:
     st.header('Display CityScapes images examples')
 
-    col1, col2 = st.columns([1, 3])
-    # Left hand side: Image selection
+    # show images and allow to select one
+    selected_image = image_select(
+        label="Select an image :",
+        images=images_icons,
+        index=-1,
+        use_container_width=False,
+        key="image_select1",
+        return_value="index"
+
+    )
+    # load selected image and mask 
+    image = np.array(Image.open(images_paths[selected_image])).astype("uint8")
+    mask = np.array(Image.open(masks_paths[selected_image])).astype("uint8")
+
+    col1, col2 = st.columns([1, 2])
+
     with col1:
-        # show images and allow to select one
-        selected_image = image_select(
-            label="Select an image :",
-            images=images_icons,
-            index=-1,
-            use_container_width=False,
-            key="image_select1",
-            return_value="index"
+        st.write("Image")
+        st.image(image)
+        st.write("Mask")
+        st.image(mask)
+    with col2 :
+        # display a bar plot of classes percentages
+        st.write("Distribution of classes :")
+        which_plot = st.radio(label="Which sample :", options=["This image", "Whole dataset"], index=None)
 
-        )
-        st.image(images_paths[selected_image])
+        if which_plot is not None :
+            if which_plot == "This image" :
+                # compute the percentage of each class
+                classes_tab = mf.compute_classes(mask=mask)
+            if which_plot ==  "Whole dataset" :
+                # Load pixel classes proportion dataframe
+                classes_tab = load("classes_proportion/classes_tab.joblib")
 
-    # Right hand side: Dataframe and plotly graph
-    with col2:
-        st.subheader('Dataframe and Plotly Graph')
-        st.write(df)
-        fig = px.bar(df, x='Category', y='Values')
-        st.plotly_chart(fig)
+            fig = mf.plot_classes(classes_tab=classes_tab)
+
+            st.plotly_chart(fig)
+
 
 # second tab - SegFormer
 with tab2:
@@ -99,33 +113,36 @@ with tab2:
     image, mask, preds = mf.prep_for_display(input_image=image, input_mask=mask, input_pred=[segformer_pred[0], unet_resnet18_pred[0]], alpha=0.7)
 
     # create columns and display image, mask, Unet-Resnet prediction and SegFormer prediction
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns([3, 3, 5])
 
     with col1 :
-        st.text("")
-        st.text("")
-        st.text("")
-        st.text("")
-        st.text("")
-        st.text("")
+        # display base image
         st.write("Image")
         st.image(image)
-
-    with col2 :
+        # display ground truth mask
         st.write("Ground truth :")
         st.image(mask)
-        st.write("IoU :")
-        
-        IoU_tabs = [IoU_tab_unet_resnet18, IoU_tab_segformer]
-        
-        fig = mf.plot_IoU(IoU_tabs)
-        st.plotly_chart(fig)
-    
-    with col3 :
+
+    with col2 :
         st.write("Unet-Resnet18 :")
         st.image(preds[1])
         st.write("SegFormer :")
         st.image(preds[0])
+
+    with col3 :
+        # and IoU per class
+        st.write("Metric - Intersection over Union :")
+        # display IoU per class for selected image or whole validation dataset
+        which_sample = st.radio(label="Which sample :", options=["This image", "Validation dataset"], index=None)
+        if which_sample is not None :
+            if which_sample == "This image" :
+                IoU_tabs = [IoU_tab_unet_resnet18, IoU_tab_segformer]
+            if which_sample == "Validation dataset" :
+                IoU_tabs = [load("IoU/IoU_Unet_Resnet18.joblib"), load("IoU/IoU_SegFormer.joblib")]
+            fig = mf.plot_IoU(IoU_tabs)
+            st.plotly_chart(fig)
+    
+
 
 
 
