@@ -121,7 +121,7 @@ def predict_with_unet_model(unet_model, input_images) :
     # masks = tf.image.resize(masks, size=(256, 512), method="nearest").numpy()
 
     # predict
-    if images.sum() == 0 :
+    if np.all(images == 255) == True :
         preds = images
     else :
         preds = unet_model.predict(images)
@@ -173,7 +173,7 @@ def predict_with_segformer_model(segformer_model, input_images) :
     images = tf.image.resize(images, size=(384, 384), method="bilinear").numpy()
 
     # predict
-    if np.array(input_images).sum() == 0 :
+    if np.all(np.array(input_images) == 255) == True :
         preds = tf.image.resize(input_images, size=(256, 512), method="bilinear").numpy()
     else :
         # first transpose (segformer needs "channel first")
@@ -184,15 +184,6 @@ def predict_with_segformer_model(segformer_model, input_images) :
         # get class label for each pixel then put them in a channel
         preds = cats_colors[np.argmax(preds, axis=-1)]
 
-    # # resize also images to 256 x 512
-    # output_images = tf.image.resize(input_images, size=(256, 512), method="bilinear").numpy().astype('uint8')
-    # output_masks = tf.image.resize(input_masks, size=(256, 512), method="nearest").numpy()
-
-    # # merge masks and preds with original images
-    # output_masks = (alpha * output_masks + (1 - alpha) * output_images).astype('uint8')
-    # preds = (alpha * preds + (1 - alpha) * output_images).astype('uint8')
-
-    # return output_images, output_masks, preds
     return preds
 
 

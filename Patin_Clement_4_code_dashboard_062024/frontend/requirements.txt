@@ -4,6 +4,8 @@ Pillow==10.4.0
 plotly==5.22.0
 Requests==2.32.3
 segmentation_models==1.0.1
-streamlit==1.32.0
+streamlit==1.36.0
 streamlit_image_select==0.6.0
 tensorflow==2.15.0
+matplotlib==3.9.0
+joblib==1.4.2
