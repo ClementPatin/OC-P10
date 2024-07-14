@@ -9,22 +9,6 @@ local_or_production = sys.argv[1]
 subprocess.call([
     "docker", "login"
     ])
-# # API
-# subprocess.call([
-#     "docker", "build", "Patin_Clement_4_code_dashboard_062024/backend", "-t", "clementpatin/oc-p10:backend"
-# ])
-# subprocess.call([
-#     "docker", "push", "clementpatin/oc-p10:backend"
-# ])
-# # UI
-# subprocess.call([
-#     "docker", "build", "Patin_Clement_4_code_dashboard_062024/frontend", "-t", "clementpatin/oc-p10:frontend"
-# ])
-# subprocess.call([
-#     "docker", "push", "clementpatin/oc-p10:frontend"
-# ])
-
-
 
 # for developpment, run docker images locally
 if local_or_production == "local" :

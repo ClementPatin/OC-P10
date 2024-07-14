@@ -83,16 +83,34 @@ def plot_classes(classes_tab) :
     # Update layout to color x-tick labels
     fig.update_layout(
         yaxis=dict(
-            range=[0, 50]  # Set y-axis limits
+            range=[0, 50],  # Set y-axis limits
+            title="Percentage (%)"
         ),
         xaxis=dict(
             tickmode='array',
             tickvals=classes_tab['class'],
-            ticktext=[f'<span style="color:{colors[cat]}; font-weight:bold;">{cat}</span>' for cat in classes_tab['class']]
+            ticktext=[f'<span style="color:{colors[cat]}; font-weight:bold;">{cat}</span>' for cat in classes_tab['class']], # use colors
+            title="Class"
         )
     )
 
     return fig
+
+    # # Create a pie chart
+    # fig = go.Figure(
+    #     data=[go.Pie(
+    #         labels=classes_tab['class'],
+    #         values=classes_tab['percent %'],
+    #         marker=dict(colors=[colors[cat] for cat in classes_tab['class']])
+    #     )]
+    # )
+    
+    # # Update layout to add title
+    # fig.update_layout(
+    #     title='Class Distribution'
+    # )
+
+    # return fig
 
 
 def IoU_per_class(gt, pred, IoU_col_name):

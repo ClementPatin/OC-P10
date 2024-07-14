@@ -14,10 +14,11 @@ from joblib import load
 
 import utils_for_frontend as mf
 
-# set wide layout
-st.set_page_config(layout="wide")
+# set page name and wide layout
+st.set_page_config(layout="wide", page_title="SegFormer - CityScapes")
 # get API url from environnement variable
 API_URL = os.environ['API_URL']
+
 
 # get examples of Cityscapes images and their masks
 images_folder = 'test_datapoints/test_images'
@@ -28,28 +29,34 @@ masks_paths = [os.path.join(masks_folder, filename) for filename in os.listdir(m
 masks_paths.sort()
 # load them as little images for "image_select" function
 images_icons = [Image.open(image_path).resize((128, 128)) for image_path in images_paths]
+# define a list of strings for captions (carefull, the last image is just a white one)
+images_captions = os.listdir(images_folder)
+images_captions.sort()
+images_captions = images_captions[:-1]+[" "]
+
 
 
 # app title
 st.title('Streamlit App with Tabs')
 
 # Define tabs
-tab1, tab2, tab3 = st.tabs(['Dataset', 'SegFormer sv U-net', 'Explainability'])
+tab1, tab2, tab3 = st.tabs(['Dataset', 'SegFormer vs U-net', 'Explainability'])
 
 # first tab - EDA
 with tab1:
-    st.header('Display CityScapes images examples')
+    st.header('CityScapes images examples')
 
     # show images and allow to select one
     selected_image = image_select(
         label="Select an image :",
         images=images_icons,
+        captions=images_captions, 
         index=-1,
         use_container_width=False,
         key="image_select1",
         return_value="index"
-
     )
+
     # load selected image and mask 
     image = np.array(Image.open(images_paths[selected_image])).astype("uint8")
     mask = np.array(Image.open(masks_paths[selected_image])).astype("uint8")
@@ -57,13 +64,12 @@ with tab1:
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        st.write("Image")
-        st.image(image)
-        st.write("Mask")
-        st.image(mask)
+        st.subheader("Explore segmentation masks :")
+        st.image(image, caption="selected CityScapes image : "+images_captions[selected_image])
+        st.image(mask, caption="Segmentation mask")
     with col2 :
         # display a bar plot of classes percentages
-        st.write("Distribution of classes :")
+        st.subheader("Distribution of classes within the image :")
         which_plot = st.radio(label="Which sample :", options=["This image", "Whole dataset"], index=None)
 
         if which_plot is not None :
@@ -81,14 +87,15 @@ with tab1:
 
 # second tab - SegFormer
 with tab2:
-    st.header('Test SegFromer, and compare with U-net Resnet18')
+    st.header('Test SegFormer')
    
     # images = [Image.open(image_path) for image_path in images]
 
     # show images and allow to select one
     selected_image2 = image_select(
         label="Select an image :",
-        images=images_icons,
+        images=images_icons, 
+        captions=images_captions, 
         index=-1,
         use_container_width=False,
         key="image_select2",
@@ -113,25 +120,68 @@ with tab2:
     image, mask, preds = mf.prep_for_display(input_image=image, input_mask=mask, input_pred=[segformer_pred[0], unet_resnet18_pred[0]], alpha=0.7)
 
     # create columns and display image, mask, Unet-Resnet prediction and SegFormer prediction
-    col1, col2, col3 = st.columns([3, 3, 5])
+    col1, col2 = st.columns([6, 5])
 
     with col1 :
-        # display base image
-        st.write("Image")
-        st.image(image)
-        # display ground truth mask
-        st.write("Ground truth :")
-        st.image(mask)
+        st.subheader("Explore the prediction result, and compare with another model")
+        subcol1, subcol2 = st.columns(2)
+        with subcol1 :
+            # display base image
+            st.write("Image")
+            st.image(image, caption="Selected CityScapes image : "+images_captions[selected_image2])
+            # display ground truth mask
+            st.write("Ground truth :")
+            st.image(mask, caption="Ground truth segmentation mask")
+
+        with subcol2 :
+            st.write("Unet-Resnet18 :")
+            st.image(preds[1], caption="Predicted mask - Unet-Resnet18")
+            st.write("SegFormer :")
+            st.image(preds[0], caption="Predicted mask - SegFormer")
 
     with col2 :
-        st.write("Unet-Resnet18 :")
-        st.image(preds[1])
-        st.write("SegFormer :")
-        st.image(preds[0])
+        # IoU per class
+        st.subheader("Compare performances")
 
-    with col3 :
-        # and IoU per class
-        st.write("Metric - Intersection over Union :")
+        # Use HTML and CSS for the tooltip
+        tooltip_text = """
+                    <style>
+                        .tooltip {
+                            position: relative;
+                            display: inline-block;
+                            border-bottom: 1px dotted black;
+                        }
+                        .tooltip .tooltiptext {
+                            visibility: hidden;
+                            width: 600px;
+                            background-color: black;
+                            color: #fff;
+                            text-align: left;
+                            border-radius: 6px;
+                            padding: 5px;
+                            position: absolute;
+                            z-index: 1;
+                            bottom: 125%; 
+                            left: 50%; 
+                            margin-left: -100px;
+                            opacity: 0;
+                            transition: opacity 0.3s;
+                        }
+                        .tooltip:hover .tooltiptext {
+                            visibility: visible;
+                            opacity: 1;
+                        }
+                    </style>
+                    <div class="tooltip">Metric - IoU :
+                        <span class="tooltiptext">This metric calculates the <b>Intersection over Union</b> for each class. <br>
+                        Used to assess the accuracy of segmentation algorithms by calculating the ratio of <br>
+                        - the <b>overlapping area</b> (intersection) <br>
+                        - to the <b>total area</b> covered by both the predicted and ground truth segmentations (union). <br>
+                        A higher IoU score indicates a better match between the predicted and actual segmented regions.</span>
+                    </div>
+                    """
+        st.markdown(tooltip_text, unsafe_allow_html=True)
+
         # display IoU per class for selected image or whole validation dataset
         which_sample = st.radio(label="Which sample :", options=["This image", "Validation dataset"], index=None)
         if which_sample is not None :
@@ -183,6 +233,7 @@ with tab3 :
 
     col1, col2 = st.columns([0.3, 0.7])
     with col1 :
+        st.subheader("What do you want to explain ?")
         # show images and allow to select one
         # first, prepare images : normalize, x 255, uint8
         images_for_selector = [explain_images[0].numpy(), explain_images[1].numpy()]
@@ -190,8 +241,9 @@ with tab3 :
         images_for_selector = [(im * 255).astype("uint8") for im in images_for_selector]
         # use image_select
         selected_i_image = image_select(
-            label="Select an image :",
-            images=images_for_selector,
+            label="Select an image to explain :",
+            images=images_for_selector, 
+            captions=["Image 1", "Image 2"], 
             index=0,
             use_container_width=False,
             key="image_select_explain",
@@ -230,6 +282,8 @@ with tab3 :
         )
 
     with col2 :
+        st.subheader("Results - which parts are important :")
+        # use custom function
         fig = mf.plot_explanation(
             image=explain_images[selected_i_image],
             explanation=explanations[selected_i_image][i_zone],
