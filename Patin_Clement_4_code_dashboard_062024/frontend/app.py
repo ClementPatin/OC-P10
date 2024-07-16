@@ -19,6 +19,30 @@ st.set_page_config(layout="wide", page_title="SegFormer - CityScapes")
 # get API url from environnement variable
 API_URL = os.environ['API_URL']
 
+# define a CSS class for bigger font size
+st.markdown("""
+           <style>
+           .custom-font-size {
+           font-size:20px;
+           }
+           </style>
+           """,
+           unsafe_allow_html=True
+           )
+
+
+# # change fontsize of Tabs
+# st.markdown('''
+#             <style>
+#                 .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+#                 font-size:20px;
+#                 }
+#             </style>
+#             ''', 
+#             unsafe_allow_html=True
+#             )
+
+
 
 # get examples of Cityscapes images and their masks
 images_folder = 'test_datapoints/test_images'
@@ -37,16 +61,19 @@ images_captions = images_captions[:-1]+[" "]
 
 
 # app title
-st.title('Streamlit App with Tabs')
+st.title('SegFormer - Proof of Concept')
 
 # Define tabs
-tab1, tab2, tab3 = st.tabs(['Dataset', 'SegFormer vs U-net', 'Explainability'])
+tab1, tab2, tab3 = st.tabs(['Dataset', 'SegFormer vs Baseline', 'Explainability'])
 
-# first tab - EDA
+
+
+# FIRST TAB - EDA
 with tab1:
     st.header('CityScapes images examples')
 
     # show images and allow to select one
+
     selected_image = image_select(
         label="Select an image :",
         images=images_icons,
@@ -64,13 +91,14 @@ with tab1:
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        st.subheader("Explore segmentation masks :")
+        st.subheader("Display images and masks :")
         st.image(image, caption="selected CityScapes image : "+images_captions[selected_image])
         st.image(mask, caption="Segmentation mask")
+        
     with col2 :
         # display a bar plot of classes percentages
-        st.subheader("Distribution of classes within the image :")
-        which_plot = st.radio(label="Which sample :", options=["This image", "Whole dataset"], index=None)
+        st.subheader("Explore :")
+        which_plot = st.radio(label="On which sample :", options=["This image", "Whole dataset"], index=None, horizontal=True)
 
         if which_plot is not None :
             if which_plot == "This image" :
@@ -79,15 +107,15 @@ with tab1:
             if which_plot ==  "Whole dataset" :
                 # Load pixel classes proportion dataframe
                 classes_tab = load("classes_proportion/classes_tab.joblib")
-
+            # use custom function to display class distribution
             fig = mf.plot_classes(classes_tab=classes_tab)
 
             st.plotly_chart(fig)
 
 
-# second tab - SegFormer
+# SECOND TAB - SEGFORMER
 with tab2:
-    st.header('Test SegFormer')
+    st.header('Test the SegFormer')
    
     # images = [Image.open(image_path) for image_path in images]
 
@@ -119,31 +147,51 @@ with tab2:
     # merge image and mask, and image and preds
     image, mask, preds = mf.prep_for_display(input_image=image, input_mask=mask, input_pred=[segformer_pred[0], unet_resnet18_pred[0]], alpha=0.7)
 
-    # create columns and display image, mask, Unet-Resnet prediction and SegFormer prediction
+    
     col1, col2 = st.columns([6, 5])
 
     with col1 :
         st.subheader("Explore the prediction result, and compare with another model")
+        # create columns and display image, mask, Unet-Resnet prediction and SegFormer prediction
         subcol1, subcol2 = st.columns(2)
         with subcol1 :
             # display base image
-            st.write("Image")
+            text = "Image :"
+            st.write('<div class="custom-font-size">' + text + '</div>', unsafe_allow_html=True)
             st.image(image, caption="Selected CityScapes image : "+images_captions[selected_image2])
             # display ground truth mask
-            st.write("Ground truth :")
+            text = "Ground truth :"
+            st.write('<div class="custom-font-size">' + text + '</div>', unsafe_allow_html=True)
             st.image(mask, caption="Ground truth segmentation mask")
 
         with subcol2 :
-            st.write("Unet-Resnet18 :")
+            # display unet prediction
+            text = "Unet-Resnet18 :"
+            st.write('<div class="custom-font-size">' + text + '</div>', unsafe_allow_html=True)
             st.image(preds[1], caption="Predicted mask - Unet-Resnet18")
-            st.write("SegFormer :")
+            # display segformer prediction
+            text = "SegFormer :"
+            st.write('<div class="custom-font-size">' + text + '</div>', unsafe_allow_html=True)
             st.image(preds[0], caption="Predicted mask - SegFormer")
 
     with col2 :
         # IoU per class
         st.subheader("Compare performances")
 
-        # Use HTML and CSS for the tooltip
+        # display IoU per class for selected image or whole validation dataset
+        which_sample = st.radio(label="On which sample :", options=["This image", "Validation dataset"], index=None, horizontal=True)
+        if which_sample is not None :
+            if which_sample == "This image" :
+                IoU_tabs = [IoU_tab_unet_resnet18, IoU_tab_segformer]
+            if which_sample == "Validation dataset" :
+                IoU_tabs = [load("IoU/IoU_Unet_Resnet18.joblib"), load("IoU/IoU_SegFormer.joblib")]
+            # use custom function to plot IoUs
+            fig = mf.plot_IoU(IoU_tabs)
+            st.plotly_chart(fig)
+
+        # explain the meaning of "IoU"
+        # text appears when hover
+        # Use HTML and CSS for tooltip
         tooltip_text = """
                     <style>
                         .tooltip {
@@ -172,38 +220,26 @@ with tab2:
                             opacity: 1;
                         }
                     </style>
-                    <div class="tooltip">Metric - IoU :
-                        <span class="tooltiptext">This metric calculates the <b>Intersection over Union</b> for each class. <br>
-                        Used to assess the accuracy of segmentation algorithms by calculating the ratio of <br>
+                    <div class="tooltip" style="font-size: 20px">IoU metric ?
+                        <span class="tooltiptext">This graph displays the <b>Intersection over Union</b> for each class. <br>
+                        This metric assess the accuracy of segmentation algorithms by calculating the ratio of <br>
                         - the <b>overlapping area</b> (intersection) <br>
                         - to the <b>total area</b> covered by both the predicted and ground truth segmentations (union). <br>
                         A higher IoU score indicates a better match between the predicted and actual segmented regions.</span>
                     </div>
                     """
         st.markdown(tooltip_text, unsafe_allow_html=True)
-
-        # display IoU per class for selected image or whole validation dataset
-        which_sample = st.radio(label="Which sample :", options=["This image", "Validation dataset"], index=None)
-        if which_sample is not None :
-            if which_sample == "This image" :
-                IoU_tabs = [IoU_tab_unet_resnet18, IoU_tab_segformer]
-            if which_sample == "Validation dataset" :
-                IoU_tabs = [load("IoU/IoU_Unet_Resnet18.joblib"), load("IoU/IoU_SegFormer.joblib")]
-            fig = mf.plot_IoU(IoU_tabs)
-            st.plotly_chart(fig)
     
 
 
 
 
-# third tab - Explainability
+# THIRD TAB - EXPLAINABILIITY
 with tab3 :
     st.header('Explain Segformer predictions')
 
     # load image examples
     explain_images = load("explainability/images_tf.joblib")
-    # # load predictions
-    # explain_predictions = load("explainability/tf_outputs.joblib")
     # load targets
     explain_targets_1 = load("explainability/targets_1.joblib")
     explain_targets_2 = load("explainability/targets_2.joblib")
@@ -231,6 +267,7 @@ with tab3 :
         }
     images_zones = [image_1_zones, image_2_zones]
 
+    # create columns
     col1, col2 = st.columns([0.3, 0.7])
     with col1 :
         st.subheader("What do you want to explain ?")
@@ -258,7 +295,7 @@ with tab3 :
                 )
         else :
             selected_zone = st.radio(
-                label="Select a zone to explain :",
+                label="",
                 options=list(images_zones[1].keys()),
                 index=0
                 )
@@ -283,7 +320,7 @@ with tab3 :
 
     with col2 :
         st.subheader("Results - which parts are important :")
-        # use custom function
+        # use custom function to plot explanations
         fig = mf.plot_explanation(
             image=explain_images[selected_i_image],
             explanation=explanations[selected_i_image][i_zone],

@@ -44,6 +44,13 @@ cats_colors = np.array([
 
 
 def load_unet_model() :
+    """
+    define a unet model with "resnet18" backbone and load its weights
+
+    returns :
+    ---------
+    unet_resnet18 - keras model
+    """
     # input shape
     input_shape = (256, 512, 3)
     # the number of classes is given by the "cats" dictionnary
@@ -64,6 +71,13 @@ def load_unet_model() :
 
 
 def load_segformer_model() :
+    """
+    define a B1 SegFormer model and load its weights
+
+    returns :
+    ---------
+    segformer - huggingface TFModel model
+    """
     # checkpoint
     checkpoint = "nvidia/mit-b1"
 

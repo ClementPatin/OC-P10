@@ -25,6 +25,18 @@ cats_colors = np.array([
         [220, 20, 60],
         [0, 0, 142]
 ])
+# the same, HEX style
+# (after contrast checking)
+cats_colorsHEX = np.array([
+        "#000000",
+        "#804080",
+        "#464646",
+        "#737373",
+        "#5F7E20",
+        "#427AA9",
+        "#DC143C",
+        "#00008E"
+])
 
 
 
@@ -66,9 +78,20 @@ def compute_classes(mask):
 
 
 def plot_classes(classes_tab) :
+    '''
+    Create a plotly barplot figure of the distribution of pixel categories
 
+    parameter :
+    -----------
+    classes_tab - Dataframe : with columns "class" and "percent"
+
+    return :
+    --------
+    fig - plotly bar plot figure
+    '''
+    # define and color dictionary compatible with plotly
     colors = {
-        f"{cat}" : f"rgb({c[0]}, {c[1]}, {c[2]})" for cat, c in zip(cats, cats_colors)
+        f"{cat}" : f"{c}" for cat, c in zip(cats, cats_colorsHEX)
     }
 
     # Create a bar plot
@@ -80,37 +103,32 @@ def plot_classes(classes_tab) :
         marker_color=[colors[cat] for cat in classes_tab['class']]
     ))
 
-    # Update layout to color x-tick labels
+    # Update layout 
+    # to color x-tick labels
+    # to set y limits
+    # to set label names
+    # to set a title
     fig.update_layout(
         yaxis=dict(
-            range=[0, 50],  # Set y-axis limits
-            title="Percentage (%)"
+            range=[0, 50],
+            title="Percentage of pixels (%)"
         ),
         xaxis=dict(
             tickmode='array',
             tickvals=classes_tab['class'],
             ticktext=[f'<span style="color:{colors[cat]}; font-weight:bold;">{cat}</span>' for cat in classes_tab['class']], # use colors
             title="Class"
+        ),
+        title=dict(
+            text="Class distribution",
+            font=dict(size=20),
+            x=0.5,
+            xanchor="center"
         )
     )
 
     return fig
 
-    # # Create a pie chart
-    # fig = go.Figure(
-    #     data=[go.Pie(
-    #         labels=classes_tab['class'],
-    #         values=classes_tab['percent %'],
-    #         marker=dict(colors=[colors[cat] for cat in classes_tab['class']])
-    #     )]
-    # )
-    
-    # # Update layout to add title
-    # fig.update_layout(
-    #     title='Class Distribution'
-    # )
-
-    # return fig
 
 
 def IoU_per_class(gt, pred, IoU_col_name):
@@ -158,74 +176,111 @@ def IoU_per_class(gt, pred, IoU_col_name):
 
 
 def plot_IoU(IoU_tabs) :
+    '''
+    Create a plotly barplot figure of IoUs per class
 
-    if len(IoU_tabs) == 2 :
+    parameter :
+    -----------
+    IoU_tabs - list of 2 DataFrames : each one with columns "class" and "name of model"
 
-        df = pd.merge(left=IoU_tabs[0], right=IoU_tabs[1], on="class")
+    return :
+    --------
+    fig - plotly bar plot figure
+    '''
 
-        df = df.melt(id_vars="class", value_vars=df.columns[1:], value_name="IoU", var_name="model")
-
-        color = 'model'
-
-    if len(IoU_tabs) == 1 :
-        df = IoU_tabs[0]
-        df.columns = ["class", "IoU"]
-
-        color = None
-
-    fig = px.bar(
-        data_frame=df,
-        x = 'class',
-        y = 'IoU',
-        color = color,
-        barmode = "group"
-    )
-
+    # define and color dictionary compatible with plotly
     colors = {
-        f"{cat}" : f"rgb({c[0]}, {c[1]}, {c[2]})" for cat, c in zip(cats, cats_colors)
-    } | {"MEAN" : "rgb(0, 0, 0)"}
+        f"{cat}" : f"{c}" for cat, c in zip(cats, cats_colorsHEX)
+    } | {"MEAN" : "#B85C00", " " : "#FFFFFF"} 
+
+    #Create a bar plot
+    fig = go.Figure()
+    
+    # iterate on dataframes and pattern shapes
+    for df, pattern in zip(IoU_tabs, ["/", ""]) :
+        # define x and y, and add a blank space between mean IoU and per class IoUs
+        x = [df["class"][0]] + [" "] + list(df["class"][1:])
+        nameOfModel = df.columns[1]
+        y = [df[nameOfModel][0]] + [0] + list(df[nameOfModel][1:])
+        # add bars
+        fig.add_trace(go.Bar(
+            name=nameOfModel,
+            x=x,
+            y=y,
+            marker_color=[colors[cat] for cat in x],
+            marker_pattern_shape=pattern
+        ))
 
 
-    # Create a bar plot
-    # fig = go.Figure()
-    # # Add bars
-    # fig.add_trace(go.Bar(
-    #     x=df['class'],
-    #     y=df['percent %'],
-    #     marker_color=[colors[cat] for cat in df['class']]
-    # ))
-
-    # Update layout to color x-tick labels
+    # Update layout 
+    # to set y-axis limits and name
+    # to color x-tick labels
+    # to add a title
     fig.update_layout(
         yaxis=dict(
-            range=[0, 1]  # Set y-axis limits
+            range=[0, 1],  
+            title="IoU"
         ),
         xaxis=dict(
             tickmode='array',
-            tickvals=df['class'],
-            ticktext=[f'<span style="color:{colors[cat]}; font-weight:bold;">{cat}</span>' for cat in df['class']]
+            tickvals=x,
+            ticktext=[f'<span style="color:{colors[cat]}; font-weight:bold;">{cat}</span>' for cat in x], # use colors
+            title="Class"
+        ),
+        title=dict(
+            text="IoU, per Class and per Model",
+            font=dict(size=20),
+            x=0.5,
+            xanchor="center"
         )
     )
 
-
+    # update traces to reduce to size of pattern
+    fig.update_traces(
+        marker_pattern_size=4,
+        selector={"type" : "bar"},
+    )
 
     return fig
+
+
     
 
 
 
-def call_seg_api(image_path, API_URL):
-    headers = {"accept" : "application/json"}
-    # files = [
-    #     ('img', (open(image_path, 'rb'), 'image/png'))
-    # ]
-    files = {'img' : open(image_path, 'rb')}
-    response = requests.post(url = API_URL+"/predict", headers=headers, files=files)
 
+
+def call_seg_api(image_path, API_URL):
+    """
+    Calls the segmentation API to get predictions from two different models: SegFormer and Unet-ResNet18.
+
+    Parameters :
+    ------------
+    - image_path - str : The file path of the image to be sent to the API.
+    - API_URL - str : The base URL of the segmentation API.
+
+    Returns :
+    ---------
+    - tuple of arrays : The prediction from the SegFormer model, The prediction from the UNet-ResNet18 model.
+    """
+
+    # Set the headers for the request
+    headers = {"accept": "application/json"}
+
+    # Open the image file in binary mode
+    files = {'img': open(image_path, 'rb')}
+
+    # Send a POST request to the API with the image file
+    response = requests.post(url=API_URL+"/predict", headers=headers, files=files)
+
+    # Parse the JSON response to get predictions from both models
     segformer_pred = json.loads(response.json()["segformer_pred"])
     unet_resnet18_pred = json.loads(response.json()["unet_resnet18_pred"])
 
+    # Convert the predictions to numpy arrays and return them
     return np.array(segformer_pred), np.array(unet_resnet18_pred)
+
+
 
 
 def prep_for_display(input_image, input_mask, input_pred, alpha=0.7) :
@@ -264,6 +319,7 @@ def prep_for_display(input_image, input_mask, input_pred, alpha=0.7) :
 
 
 # Re-create Xplique function "plot_attribution" 
+# https://github.com/deel-ai/xplique/blob/master/xplique/plots/image.py
 
 def _normalize(image) :
     """
@@ -312,6 +368,26 @@ def _clip_percentile(tensor, percentile) :
     return tensor
 
 def _clip_normalize(explanation, clip_percentile = 0.1, absolute_value = False) :
+    """
+    Normalize and optionally clip an explanation tensor.
+
+    Parameters
+    ----------
+    explanation : np.ndarray
+        The explanation tensor to be processed.
+    clip_percentile : float, optional
+        The percentile value for clipping. The tensor will be clipped between
+        the `clip_percentile` and `100 - clip_percentile` percentiles.
+        Default is 0.1.
+    absolute_value : bool, optional
+        If True, take the absolute value of the explanation tensor before clipping
+        and normalization. Default is False.
+
+    Returns
+    -------
+    explanation : np.ndarray
+        The processed explanation tensor, normalized to the range [0, 1].
+    """
     if absolute_value:
         explanation = np.abs(explanation)
 
@@ -383,6 +459,10 @@ def plot_explanation(image, explanation, target, alpha_mask, alpha_explain_plot,
     alpha_mask - float in [0, 1] : for merging images and predicted selected masks, alpha value for the mask
     alpha_explain_plot - float in [0, 1] : for the xplique "plot_attributions" function, opacity value for te explanation
     output_size - tuple of int
+
+    return :
+    --------
+    fig - plt figure
     '''
     # add mask to image for visualization
     mask = tf.expand_dims(tf.cast(tf.reduce_any(target != 0, axis=-1), tf.float32), -1)
