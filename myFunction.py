@@ -2,23 +2,15 @@
 import tensorflow as tf
 import keras
 import segmentation_models as sm
-
 import albumentations as A
-
-from transformers import AutoImageProcessor
-
 import evaluate
-
 import os
-
 import numpy as np
 import pandas as pd
-
 import matplotlib.pyplot as plt
-
 from sklearn.model_selection import train_test_split
-
 from xplique.plots.image import plot_attributions, plot_attribution
+
 
 
 
@@ -194,7 +186,7 @@ def plot_learning_curves(history_dict, list_of_metrics, title="Learning curves",
     ------------
     history_dict - dict : Dictionary containing training and validation metrics.
     list_of_metrics - list : List of metrics to plot.
-    title - str : suptitle
+    title - str : suptitle. By default, "Learning curves"
     save_path - string : to save figure. By default, None
 
     """
@@ -427,13 +419,7 @@ class generator_for_transformers(keras.utils.Sequence) :
             ])
             # sort
             l.sort()
-
-        # # handle n_images
-        # if self.n_images :
-        #     self.images_path_list = self.images_path_list[:self.n_images]
-        #     self.masks_path_list = self.masks_path_list[:self.n_images]
-        
-        
+       
         # handle split if neccessary
         if split :
             im_train, im_test = train_test_split(self.images_path_list, test_size=split_test_size, random_state=split_rs)
@@ -554,9 +540,10 @@ def compute_metrics(eval_pred):
         - mean and per-class iou
         - global, mean and per-class accuracy
 
-    parameters :
+    parameter :
     ------------
     - eval_pred - tuple of logits and labels tensors
+
     return :
     --------
     dictionnary of metrics names and values
@@ -696,7 +683,7 @@ def plotSegformerModel(model, test_dataset, n_images, cats_colors, output_size=(
         axs[0,0].set_title("Images")
         axs[0,1].set_title("Masks")
         axs[0,2].set_title("Predicted masks")
-
+    # handle the case with n_images=1
     else :
         for j, images_array in enumerate([images_resized, masks_resized, preds_resized]) :
             axs[j].imshow(images_array[0])
@@ -706,10 +693,10 @@ def plotSegformerModel(model, test_dataset, n_images, cats_colors, output_size=(
         axs[1].set_title("Masks")
         axs[2].set_title("Predicted masks")
 
-
-
+    # title
     fig.suptitle("Segmentation model, visualize predictions")
 
+    # save
     if save_path is not None :
         plt.savefig(save_path, format = "png")
 
@@ -885,7 +872,7 @@ def plot_explanation(image, zone_name, explanation, target, alpha_mask, alpha_ex
 
 def predict_with_unet_model(unet_model, input_images, input_masks, cats_colors, alpha=0.7) :
     '''
-    from a trained segmentation model and from images and their masks :
+    from a trained keras.Model segmentation model and from images and their masks :
         - resize
         - prepare
         - predict
@@ -893,7 +880,7 @@ def predict_with_unet_model(unet_model, input_images, input_masks, cats_colors, 
     
     parameters :
     ------------
-    unet_model - segmentation model
+    unet_model - keras.Model segmentation model
     input_images - 4D array-like, channel last
     input_masks - 4D array-like channel last
     cats_colors - array-like of shape (num classes, 3) : RGB values for each class
