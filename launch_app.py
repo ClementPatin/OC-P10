@@ -11,7 +11,7 @@ subprocess.call([
     ])
 
 # for developpment, run docker images locally
-if local_or_production == "local" :
+if local_or_production == "dev" :
     # login
     subprocess.call([
         "docker", "login"
